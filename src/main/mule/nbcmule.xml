@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="Controller" doc:name="HTTP Listener config" doc:id="92c4ff19-0998-4574-8147-74a1f8c44455" >
+		<http:listener-connection host="0.0.0.0" port="8082">
+		</http:listener-connection>
+	</http:listener-config>
+	<global-property doc:name="Global Property" doc:id="15452f37-a65f-4405-a306-a0cdd8247c91" name="secure.key" value="MuleSoft" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="75a2bd8f-4f3b-4612-b983-f1f14ae95db5" file="local.properties" key="${secure.key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<http:request-config name="GetUserAccounts" doc:name="HTTP Request configuration" doc:id="56f6ab2c-ec05-401f-a213-6b81b0ea40a3">
+		<http:request-connection protocol="HTTPS" host="${WEALTH_API_HOST}"/>
+	</http:request-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="d3507cb6-ba01-4bcc-90d1-f393086ea222" file="local.properties" />
+	<flow name="nbcmuleFlow" doc:id="de537c8e-9fd0-4585-80cd-7a889abe706f" >
+		<http:listener doc:name="/nbcmule" doc:id="7a64b7b2-4f65-428e-95fc-67a823a6adb1" config-ref="Controller" path="/nbcmule"/>
+		<ee:transform doc:name="Transform Message" doc:id="90630044-ff13-4e8f-82c3-d23c648c1354" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[payload]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="wealthApiKey" ><![CDATA[message.attributes.headers['x-wealth-api-key']]]></ee:set-variable>
+				<ee:set-variable variableName="partyId" ><![CDATA[message.attributes.headers['x-wealth-api-party-id']]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<http:request method="GET" doc:name="get accounts" doc:id="acd1bd4a-48bc-46eb-84bf-d110dbb76342" config-ref="GetUserAccounts" path="/wm/v1/investment-portfolios/parties/{partyId}/accounts">
+			<http:headers ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	Authorization:  'Bearer' ++ ' ' ++ vars.wealthApiKey as String,
+	partnerId: p('PARTNER_ID'),
+	sroCd: p('SRO_CODE')
+}]]]></http:headers>
+			<http:uri-params ><![CDATA[#[%dw 2.0
+output application/json
+---
+{
+	partyId : vars.partyId
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+</mule>
